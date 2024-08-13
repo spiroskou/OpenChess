@@ -495,6 +495,10 @@ int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 		for (const Move& move : board->getPossibleMoves(currentTurn)) {
 			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
 			board->makeMove(move);
+			if (board->isKingInCheck(currentTurn)) {
+				board->undoMove(move, capturedPiece);
+				continue;
+			}
 			int eval = minimax(depth - 1, alpha, beta, false);
 			board->undoMove(move, capturedPiece);
 			maxEval = std::max(maxEval, eval);
@@ -509,6 +513,10 @@ int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 		for (const Move& move : board->getPossibleMoves(currentTurn)) {
 			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
 			board->makeMove(move);
+			if (board->isKingInCheck(currentTurn)) {
+				board->undoMove(move, capturedPiece);
+				continue;
+			}
 			int eval = minimax(depth - 1, alpha, beta, true);
 			board->undoMove(move, capturedPiece);
 			minEval = std::min(minEval, eval);
@@ -530,7 +538,12 @@ Move findBestMove(int depth)
 
 	for (const Move& move : moves) {
 		std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
+
 		board->makeMove(move);
+		if (board->isKingInCheck(currentTurn)) {
+			board->undoMove(move, capturedPiece);
+			continue;
+		}
 		int boardValue = minimax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false);
 		board->undoMove(move, capturedPiece);
 

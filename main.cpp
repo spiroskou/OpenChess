@@ -5,7 +5,7 @@
 #include "ChessSDL.h"
 
 constexpr auto AI_OPPONENT = 1;
-constexpr auto depth = 3;
+constexpr auto depth = 4;
 
 int main(int argc, char* args[]) 
 {

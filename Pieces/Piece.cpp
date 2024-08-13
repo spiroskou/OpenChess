@@ -21,11 +21,11 @@ int Piece::getValue() const
     case PieceType::Knight:
         return 3;
     case PieceType::Bishop:
-        return 3;
-    case PieceType::Rook:
         return 5;
+    case PieceType::Rook:
+        return 10;
     case PieceType::Queen:
-        return 9;
+        return 100;
     case PieceType::King:
         return 1000; // Use a high value for King; this value is just an example
     default:
