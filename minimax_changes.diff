@@ -1,0 +1,276 @@
+diff --git a/Board/Board.cpp b/Board/Board.cpp
+index 0b30846..59d62aa 100644
+--- a/Board/Board.cpp
++++ b/Board/Board.cpp
+@@ -3,8 +3,12 @@
+ #include "Piece.h"
+ #include <windows.h>
+ #include <memory>
++#include <limits>
+ #include "SDL.h"
+ 
++#undef min
++#undef max
++
+ static std::shared_ptr<Board> board = std::make_shared<Board>();
+ static int turn_counter = 1;
+ 
+@@ -434,3 +438,108 @@ MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col)
+ 	return board->move(src_row, src_col, trg_row, trg_col);
+ }
+ 
++void Board::makeMove(const Move& move) 
++{
++	moveHistory.push_back(move);
++	replace(move.src_row, move.src_col, move.dest_row, move.dest_col);
++}
++
++void Board::undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece) 
++{
++	// Revert the move
++	restore(move.src_row, move.src_col, move.dest_row, move.dest_col, capturedPiece);
++	moveHistory.pop_back();
++}
++
++std::vector<Move> Board::getPossibleMoves(PieceColor color) const 
++{
++	std::vector<Move> moves;
++	for (int row = 0; row < 8; ++row) {
++		for (int col = 0; col < 8; ++col) {
++			auto piece = getPiece(row, col);
++
++			if (piece && piece->getColor() == color) {
++				piece->getValidMoves(row, col, moves);
++			}
++		}
++	}
++	return moves;
++}
++
++int Board::evaluate() const 
++{
++	// A simple evaluation function: positive for White, negative for Black
++	int score = 0;
++	for (int row = 0; row < 8; ++row) {
++		for (int col = 0; col < 8; ++col) {
++			auto piece = getPiece(row, col);
++			if (piece) {
++				score += piece->getValue();
++			}
++		}
++	}
++	return score;
++}
++
++int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer) 
++{
++	if (depth == 0 || board->isCheckmate() || board->isStalemate()) {
++		return board->evaluate();
++	}
++
++	PieceColor currentTurn = isMaximizingPlayer ? PieceColor::White : PieceColor::Black;
++
++	if (isMaximizingPlayer) 
++	{
++		int maxEval = std::numeric_limits<int>::min();
++		for (const Move& move : board->getPossibleMoves(currentTurn)) {
++			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
++			board->makeMove(move);
++			int eval = minimax(depth - 1, alpha, beta, false);
++			board->undoMove(move, capturedPiece);
++			maxEval = std::max(maxEval, eval);
++			alpha = std::max(alpha, eval);
++			if (beta <= alpha) {
++				break;
++			}
++		}
++		return maxEval;
++	} else {
++		int minEval = std::numeric_limits<int>::max();
++		for (const Move& move : board->getPossibleMoves(currentTurn)) {
++			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
++			board->makeMove(move);
++			int eval = minimax(depth - 1, alpha, beta, true);
++			board->undoMove(move, capturedPiece);
++			minEval = std::min(minEval, eval);
++			beta = std::min(beta, eval);
++			if (beta <= alpha) {
++				break;
++			}
++		}
++		return minEval;
++	}
++}
++
++Move findBestMove(int depth) 
++{
++	int bestValue = std::numeric_limits<int>::min();
++	Move bestMove;
++	PieceColor currentTurn = PieceColor::Black;  // Assuming AI plays as Black
++	std::vector<Move> moves = board->getPossibleMoves(currentTurn);
++
++	for (const Move& move : moves) {
++		std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
++		board->makeMove(move);
++		int boardValue = minimax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false);
++		board->undoMove(move, capturedPiece);
++
++		if (boardValue > bestValue) {
++			bestValue = boardValue;
++			bestMove = move;
++		}
++	}
++	return bestMove;
++}
++
++
+diff --git a/Board/Board.h b/Board/Board.h
+index 64887ec..357cd91 100644
+--- a/Board/Board.h
++++ b/Board/Board.h
+@@ -10,21 +10,6 @@
+ #include "Queen.h"
+ #include "King.h"
+ 
+-enum class MoveResult {
+-    InvalidPiece = 0,
+-    OpponentPiece,
+-    InvalidMove,
+-    KingInCheck,
+-    Checkmate,
+-    Stalemate,
+-    ValidMove
+-};
+-
+-struct Move {
+-    int src_row, src_col;
+-    int dest_row, dest_col;
+-};
+-
+ class Board
+ {
+ private:
+@@ -60,9 +45,14 @@ public:
+     Move getLastMove() const;
+     bool isEnPassant(int src_row, int src_col, int trg_row, int trg_col) const;
+     bool isStalemate();
++    void makeMove(const Move& move);
++    void undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece);
++    std::vector<Move> getPossibleMoves(PieceColor color) const;
++    int evaluate() const;
+ };
+ 
+ std::shared_ptr<Board> getBoard();
+ void IncrementTurnCounter();
+ int getTurnCounter();
+ MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col);
++Move findBestMove(int depth);
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ca81eb3..9afdf12 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -13,7 +13,7 @@ include_directories(${SDL2_INCLUDE_DIRS})
+ include_directories(Board Pieces)
+ 
+ # Add source to this project's executable.
+-add_executable (OpenChess "main.cpp"  "Pieces/Piece.h" "Pieces/King.h" "Pieces/King.cpp" "Pieces/Rook.h" "Pieces/Rook.cpp" "Pieces/Queen.h" "Pieces/Queen.cpp" "Pieces/Pawn.h" "Pieces/Pawn.cpp" "Pieces/Bishop.h" "Pieces/Bishop.cpp" "Pieces/Knight.h" "Pieces/Knight.cpp" "Board/Board.cpp" "Board/Board.h" "ChessSDL.cpp" "ChessSDL.h")
++add_executable (OpenChess "main.cpp"  "Pieces/Piece.h" "Pieces/King.h" "Pieces/King.cpp" "Pieces/Rook.h" "Pieces/Rook.cpp" "Pieces/Queen.h" "Pieces/Queen.cpp" "Pieces/Pawn.h" "Pieces/Pawn.cpp" "Pieces/Bishop.h" "Pieces/Bishop.cpp" "Pieces/Knight.h" "Pieces/Knight.cpp" "Board/Board.cpp" "Board/Board.h" "ChessSDL.cpp" "ChessSDL.h" "Pieces/Piece.cpp")
+ 
+ target_link_libraries(OpenChess ${SDL2_LIBRARIES} SDL2_image::SDL2_image)
+ 
+diff --git a/Pieces/Piece.h b/Pieces/Piece.h
+index 9080534..f3ef110 100644
+--- a/Pieces/Piece.h
++++ b/Pieces/Piece.h
+@@ -2,12 +2,26 @@
+ 
+ #include <array>
+ #include <string>
++#include <vector>
++
++enum class MoveResult {
++    InvalidPiece = 0,
++    OpponentPiece,
++    InvalidMove,
++    KingInCheck,
++    Checkmate,
++    Stalemate,
++    ValidMove
++};
++
++struct Move {
++    int src_row, src_col;
++    int dest_row, dest_col;
++};
+ 
+ enum class PieceType {Empty, Pawn, Knight, Bishop, Rook, Queen, King};
+ enum class PieceColor {Blank, White, Black};
+ 
+-class Block;
+-
+ class Piece
+ {
+ public:
+@@ -24,6 +38,8 @@ public:
+ 	void setType(PieceType type) { m_type = type; };
+ 	virtual bool isValidMove(int src_row, int src_col, int trg_row, int trg_col) const { return false; };
+ 	virtual std::string getImagePath() const { return ""; };
++	void getValidMoves(int row, int col, std::vector<Move> &moves);
++	int getValue() const;
+ 
+ private:
+ 	PieceType m_type;
+diff --git a/main.cpp b/main.cpp
+index cf57754..9001a41 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -4,8 +4,10 @@
+ #include "Board.h"
+ #include "ChessSDL.h"
+ 
+-int main(int argc, char* args[]) 
++int main(int argc, char* args[])
+ {
++    int depth = 3;  // Depth for the Minimax algorithm, can be adjusted based on difficulty
++
+     if (ChessSDL_MakePreparations()) {
+         return 1;
+     }
+@@ -38,7 +40,8 @@ int main(int argc, char* args[])
+                     first_row = row;
+                     first_col = col;
+                     click_counter++;
+-                } else {
++                }
++                else {
+                     int src_row = first_row;
+                     int src_col = first_col;
+                     int dest_row = row;
+@@ -63,10 +66,26 @@ int main(int argc, char* args[])
+             }
+         }
+ 
++        // AI's turn (Player 2)
++        if (getTurnCounter() % 2 == 0 && !quit) {  // Assuming AI plays as Black
++            Move aiMove = findBestMove(depth);
++            MoveResult aiRes = makeTheMove(aiMove.src_row, aiMove.src_col, aiMove.dest_row, aiMove.dest_col);
++
++            if (aiRes == MoveResult::Checkmate || aiRes == MoveResult::Stalemate) {
++                ChessSDL_RenderChessBoard();
++                ChessSDL_ShowMoveMessage(aiRes);
++                quit = true;
++            }
++
++			if (aiRes == MoveResult::ValidMove) {
++				IncrementTurnCounter();
++			}
++            ChessSDL_ShowMoveMessage(aiRes);
++        }
++
+         ChessSDL_RenderChessBoard();
+     }
+ 
+-
+     ChessSDL_Close();
+     return 0;
+ }

@@ -10,21 +10,6 @@
 #include "Queen.h"
 #include "King.h"
 
-enum class MoveResult {
-    InvalidPiece = 0,
-    OpponentPiece,
-    InvalidMove,
-    KingInCheck,
-    Checkmate,
-    Stalemate,
-    ValidMove
-};
-
-struct Move {
-    int src_row, src_col;
-    int dest_row, dest_col;
-};
-
 class Board
 {
 private:
@@ -60,9 +45,14 @@ public:
     Move getLastMove() const;
     bool isEnPassant(int src_row, int src_col, int trg_row, int trg_col) const;
     bool isStalemate();
+    void makeMove(const Move& move);
+    void undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece);
+    std::vector<Move> getPossibleMoves(PieceColor color) const;
+    int evaluate() const;
 };
 
 std::shared_ptr<Board> getBoard();
 void IncrementTurnCounter();
 int getTurnCounter();
 MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col);
+Move findBestMove(int depth);

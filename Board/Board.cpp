@@ -3,7 +3,11 @@
 #include "Piece.h"
 #include <windows.h>
 #include <memory>
+#include <limits>
 #include "SDL.h"
+
+#undef min
+#undef max
 
 static std::shared_ptr<Board> board = std::make_shared<Board>();
 static int turn_counter = 1;
@@ -433,4 +437,109 @@ MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col)
 {
 	return board->move(src_row, src_col, trg_row, trg_col);
 }
+
+void Board::makeMove(const Move& move) 
+{
+	moveHistory.push_back(move);
+	replace(move.src_row, move.src_col, move.dest_row, move.dest_col);
+}
+
+void Board::undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece) 
+{
+	// Revert the move
+	restore(move.src_row, move.src_col, move.dest_row, move.dest_col, capturedPiece);
+	moveHistory.pop_back();
+}
+
+std::vector<Move> Board::getPossibleMoves(PieceColor color) const 
+{
+	std::vector<Move> moves;
+	for (int row = 0; row < 8; ++row) {
+		for (int col = 0; col < 8; ++col) {
+			auto piece = getPiece(row, col);
+
+			if (piece && piece->getColor() == color) {
+				piece->getValidMoves(row, col, moves);
+			}
+		}
+	}
+	return moves;
+}
+
+int Board::evaluate() const 
+{
+	// A simple evaluation function: positive for White, negative for Black
+	int score = 0;
+	for (int row = 0; row < 8; ++row) {
+		for (int col = 0; col < 8; ++col) {
+			auto piece = getPiece(row, col);
+			if (piece) {
+				score += piece->getValue();
+			}
+		}
+	}
+	return score;
+}
+
+int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer) 
+{
+	if (depth == 0 || board->isCheckmate() || board->isStalemate()) {
+		return board->evaluate();
+	}
+
+	PieceColor currentTurn = isMaximizingPlayer ? PieceColor::White : PieceColor::Black;
+
+	if (isMaximizingPlayer) 
+	{
+		int maxEval = std::numeric_limits<int>::min();
+		for (const Move& move : board->getPossibleMoves(currentTurn)) {
+			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
+			board->makeMove(move);
+			int eval = minimax(depth - 1, alpha, beta, false);
+			board->undoMove(move, capturedPiece);
+			maxEval = std::max(maxEval, eval);
+			alpha = std::max(alpha, eval);
+			if (beta <= alpha) {
+				break;
+			}
+		}
+		return maxEval;
+	} else {
+		int minEval = std::numeric_limits<int>::max();
+		for (const Move& move : board->getPossibleMoves(currentTurn)) {
+			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
+			board->makeMove(move);
+			int eval = minimax(depth - 1, alpha, beta, true);
+			board->undoMove(move, capturedPiece);
+			minEval = std::min(minEval, eval);
+			beta = std::min(beta, eval);
+			if (beta <= alpha) {
+				break;
+			}
+		}
+		return minEval;
+	}
+}
+
+Move findBestMove(int depth) 
+{
+	int bestValue = std::numeric_limits<int>::min();
+	Move bestMove;
+	PieceColor currentTurn = PieceColor::Black;  // Assuming AI plays as Black
+	std::vector<Move> moves = board->getPossibleMoves(currentTurn);
+
+	for (const Move& move : moves) {
+		std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
+		board->makeMove(move);
+		int boardValue = minimax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false);
+		board->undoMove(move, capturedPiece);
+
+		if (boardValue > bestValue) {
+			bestValue = boardValue;
+			bestMove = move;
+		}
+	}
+	return bestMove;
+}
+
 

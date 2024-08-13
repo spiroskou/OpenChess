@@ -2,11 +2,25 @@
 
 #include <array>
 #include <string>
+#include <vector>
+
+enum class MoveResult {
+    InvalidPiece = 0,
+    OpponentPiece,
+    InvalidMove,
+    KingInCheck,
+    Checkmate,
+    Stalemate,
+    ValidMove
+};
+
+struct Move {
+    int src_row, src_col;
+    int dest_row, dest_col;
+};
 
 enum class PieceType {Empty, Pawn, Knight, Bishop, Rook, Queen, King};
 enum class PieceColor {Blank, White, Black};
-
-class Block;
 
 class Piece
 {
@@ -24,6 +38,8 @@ public:
 	void setType(PieceType type) { m_type = type; };
 	virtual bool isValidMove(int src_row, int src_col, int trg_row, int trg_col) const { return false; };
 	virtual std::string getImagePath() const { return ""; };
+	void getValidMoves(int row, int col, std::vector<Move> &moves);
+	int getValue() const;
 
 private:
 	PieceType m_type;

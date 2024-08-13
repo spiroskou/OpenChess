@@ -4,6 +4,9 @@
 #include "Board.h"
 #include "ChessSDL.h"
 
+constexpr auto AI_OPPONENT = 1;
+constexpr auto depth = 3;
+
 int main(int argc, char* args[]) 
 {
     if (ChessSDL_MakePreparations()) {
@@ -63,9 +66,26 @@ int main(int argc, char* args[])
             }
         }
 
+        if (AI_OPPONENT) {
+            // AI's turn (Player 2)
+            if (getTurnCounter() % 2 == 0 && !quit) {  // Assuming AI plays as Black
+                Move aiMove = findBestMove(depth);
+                MoveResult aiRes = makeTheMove(aiMove.src_row, aiMove.src_col, aiMove.dest_row, aiMove.dest_col);
+ 
+                if (aiRes == MoveResult::Checkmate || aiRes == MoveResult::Stalemate) {
+                    ChessSDL_RenderChessBoard();
+                    ChessSDL_ShowMoveMessage(aiRes);
+                    quit = true;
+                }
+ 
+ 		       if (aiRes == MoveResult::ValidMove) {
+ 		            IncrementTurnCounter();
+ 		       }
+                ChessSDL_ShowMoveMessage(aiRes);
+            }
+        }
         ChessSDL_RenderChessBoard();
     }
-
 
     ChessSDL_Close();
     return 0;

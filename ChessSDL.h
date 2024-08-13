@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "Board/Board.h"
+#include "Board.h"
 
 const int ROWS = 8;
 const int COLS = 8;
