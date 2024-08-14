@@ -17,17 +17,17 @@ int Piece::getValue() const
     switch (m_type)
     {
     case PieceType::Pawn:
-        return 1;
-    case PieceType::Knight:
-        return 3;
-    case PieceType::Bishop:
-        return 5;
-    case PieceType::Rook:
-        return 10;
-    case PieceType::Queen:
         return 100;
+    case PieceType::Knight:
+        return 300;
+    case PieceType::Bishop:
+        return 325;
+    case PieceType::Rook:
+        return 500;
+    case PieceType::Queen:
+        return 900;
     case PieceType::King:
-        return 1000; // Use a high value for King; this value is just an example
+        return 10000; // Use a high value for King; this value is just an example
     default:
         return 0; // For PieceType::Empty or unknown types
     }

@@ -474,7 +474,7 @@ int Board::evaluate() const
 		for (int col = 0; col < 8; ++col) {
 			auto piece = getPiece(row, col);
 			if (piece) {
-				score += piece->getValue();
+				score -= piece->getValue();
 			}
 		}
 	}
@@ -489,16 +489,11 @@ int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 
 	PieceColor currentTurn = isMaximizingPlayer ? PieceColor::White : PieceColor::Black;
 
-	if (isMaximizingPlayer) 
-	{
+	if (isMaximizingPlayer) {
 		int maxEval = std::numeric_limits<int>::min();
 		for (const Move& move : board->getPossibleMoves(currentTurn)) {
 			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
 			board->makeMove(move);
-			if (board->isKingInCheck(currentTurn)) {
-				board->undoMove(move, capturedPiece);
-				continue;
-			}
 			int eval = minimax(depth - 1, alpha, beta, false);
 			board->undoMove(move, capturedPiece);
 			maxEval = std::max(maxEval, eval);
@@ -531,8 +526,8 @@ int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 
 Move findBestMove(int depth) 
 {
-	int bestValue = std::numeric_limits<int>::min();
-	Move bestMove;
+	int bestValue = std::numeric_limits<int>::max();
+	Move bestMove {-1, -1, -1, -1};
 	PieceColor currentTurn = PieceColor::Black;  // Assuming AI plays as Black
 	std::vector<Move> moves = board->getPossibleMoves(currentTurn);
 
@@ -540,14 +535,10 @@ Move findBestMove(int depth)
 		std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
 
 		board->makeMove(move);
-		if (board->isKingInCheck(currentTurn)) {
-			board->undoMove(move, capturedPiece);
-			continue;
-		}
-		int boardValue = minimax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false);
+		int boardValue = minimax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), true);
 		board->undoMove(move, capturedPiece);
 
-		if (boardValue > bestValue) {
+		if (boardValue < bestValue) {
 			bestValue = boardValue;
 			bestMove = move;
 		}
