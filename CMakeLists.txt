@@ -17,7 +17,7 @@ include_directories(Board Pieces)
 # Add source to this project's executable.
 add_executable (OpenChess "main.cpp"  "Pieces/Piece.h" "Pieces/King.h" "Pieces/King.cpp" "Pieces/Rook.h" "Pieces/Rook.cpp" "Pieces/Queen.h" "Pieces/Queen.cpp" "Pieces/Pawn.h" "Pieces/Pawn.cpp" "Pieces/Bishop.h" "Pieces/Bishop.cpp" "Pieces/Knight.h" "Pieces/Knight.cpp" "Board/Board.cpp" "Board/Board.h" "ChessSDL.cpp" "ChessSDL.h" "Pieces/Piece.cpp")
 
-target_link_libraries(OpenChess ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES})
+target_link_libraries(OpenChess ${SDL2_LIBRARIES} SDL2_image::SDL2_image)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET OpenChess PROPERTY CXX_STANDARD 20)
