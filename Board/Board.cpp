@@ -508,10 +508,6 @@ int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 		for (const Move& move : board->getPossibleMoves(currentTurn)) {
 			std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);
 			board->makeMove(move);
-			if (board->isKingInCheck(currentTurn)) {
-				board->undoMove(move, capturedPiece);
-				continue;
-			}
 			int eval = minimax(depth - 1, alpha, beta, true);
 			board->undoMove(move, capturedPiece);
 			minEval = std::min(minEval, eval);

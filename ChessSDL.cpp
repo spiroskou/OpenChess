@@ -147,7 +147,37 @@ int ChessSDL_MakePreparations()
     return 0;
 }
 
-void ChessSDL_RenderChessBoard() 
+void ChessSDL_HighlightLastMove()
+{
+    std::shared_ptr<Board> board = getBoard();
+    Move move = board->getLastMove();
+
+    if (move.src_col == -1) return;
+
+    SDL_Renderer* renderer = getRenderer();
+
+	SDL_SetRenderDrawColor(renderer, 255, 255, 130, 255);
+	SDL_Rect tile = { move.src_col * TILE_SIZE, move.src_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+	SDL_RenderFillRect(renderer, &tile);
+	tile = { move.dest_col * TILE_SIZE, move.dest_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+	SDL_RenderFillRect(renderer, &tile);
+    
+    std::shared_ptr<Piece> piece = board->getPiece(move.dest_row, move.dest_col);
+	if (piece) {
+		std::string imagePath;
+
+		imagePath = piece->getImagePath();
+		SDL_Texture* texture = getTexture(imagePath);
+		if (texture) {
+			SDL_Rect pieceRect = { move.dest_col * TILE_SIZE, move.dest_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+			SDL_RenderCopy(renderer, texture, nullptr, &pieceRect);
+		}
+	}
+
+	SDL_RenderPresent(renderer);
+}
+
+void ChessSDL_RenderChessBoard(bool lastMove)
 {
     SDL_Renderer* renderer = getRenderer();
 
@@ -157,12 +187,13 @@ void ChessSDL_RenderChessBoard()
     bool white = true;
     for (int row = 0; row < ROWS; ++row) {
         for (int col = 0; col < COLS; ++col) {
+
             if (white) {
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White
-            }
-            else {
+            } else {
                 SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray
             }
+
             SDL_Rect tile = { col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
             SDL_RenderFillRect(renderer, &tile);
             white = !white;
@@ -185,6 +216,8 @@ void ChessSDL_RenderChessBoard()
     }
 
 	SDL_RenderPresent(renderer);
+
+    if (lastMove) ChessSDL_HighlightLastMove();
 }
 
 static void showCheckmateMessage()

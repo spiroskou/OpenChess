@@ -15,15 +15,10 @@ int main(int argc, char* args[])
 
     bool quit = false;
     SDL_Event e;
-    int print = 0;
+    ChessSDL_RenderChessBoard(false);
 
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
-
-            if (!print) {
-                std::cout << (getTurnCounter() % 2 != 0 ? "Player1 (White) " : "Player2 (Black) ") << "turn" << std::endl;
-                print = 1;
-            }
 
             if (e.type == SDL_QUIT) {
                 quit = true;
@@ -47,18 +42,18 @@ int main(int argc, char* args[])
                     int dest_row = row;
                     int dest_col = col;
                     click_counter = 0;
-                    print = 0;
 
                     MoveResult res = makeTheMove(src_row, src_col, dest_row, dest_col);
 
                     if (res == MoveResult::Checkmate || res == MoveResult::Stalemate) {
-                        ChessSDL_RenderChessBoard();
+                        ChessSDL_RenderChessBoard(true);
                         ChessSDL_ShowMoveMessage(res);
                         quit = true;
                         break;
                     }
 
                     if (res == MoveResult::ValidMove) {
+                        ChessSDL_RenderChessBoard(true);
                         IncrementTurnCounter();
                     }
                     ChessSDL_ShowMoveMessage(res);
@@ -73,18 +68,19 @@ int main(int argc, char* args[])
                 MoveResult aiRes = makeTheMove(aiMove.src_row, aiMove.src_col, aiMove.dest_row, aiMove.dest_col);
  
                 if (aiRes == MoveResult::Checkmate || aiRes == MoveResult::Stalemate) {
-                    ChessSDL_RenderChessBoard();
+                    ChessSDL_RenderChessBoard(true);
                     ChessSDL_ShowMoveMessage(aiRes);
                     quit = true;
                 }
  
  		       if (aiRes == MoveResult::ValidMove) {
+                    ChessSDL_RenderChessBoard(true);
  		            IncrementTurnCounter();
  		       }
                 ChessSDL_ShowMoveMessage(aiRes);
             }
         }
-        ChessSDL_RenderChessBoard();
+
     }
 
     ChessSDL_Close();
