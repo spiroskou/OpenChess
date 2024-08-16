@@ -5,6 +5,8 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("OpenChess")
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
 
