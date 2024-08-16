@@ -313,7 +313,7 @@ bool Board::isStalemate()
 {
 	// Get the position of the current player's king
 	int kingRow = -1, kingCol = -1;
-	std::shared_ptr<King> king = getKing(getColor(), kingRow, kingCol);
+	std::shared_ptr<King> king = getKing(getOpponentColor(), kingRow, kingCol);
 
 	// If the king is in check, it's not a stalemate
 	if (isKingInCheck(getColor())) {
@@ -474,7 +474,11 @@ int Board::evaluate() const
 		for (int col = 0; col < 8; ++col) {
 			auto piece = getPiece(row, col);
 			if (piece) {
-				score -= piece->getValue();
+				if (piece->getColor() == getColor()) {
+					score -= piece->getValue();
+				} else {
+					score += piece->getValue();
+				}
 			}
 		}
 	}
