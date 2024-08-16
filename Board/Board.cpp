@@ -1,7 +1,6 @@
 #include <iostream>
 #include "Board.h"
 #include "Piece.h"
-#include <windows.h>
 #include <memory>
 #include <limits>
 #include "SDL.h"
