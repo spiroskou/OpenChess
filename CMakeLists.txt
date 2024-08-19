@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.8)
 project ("OpenChess")
 
 # SDL2 paths
-set(SDL2_DIR "${CMAKE_SOURCE_DIR}/SDL/SDL2-devel-2.30.4-VC/SDL2-2.30.4/")
+set(SDL2_DIR "${CMAKE_SOURCE_DIR}/SDL/SDL2-devel-2.30.4-VC/SDL2-2.30.4")
 set(SDL2_INCLUDE_DIR "${SDL2_DIR}/include")
 set(SDL2_LIBRARY "${SDL2_DIR}/lib/x64/SDL2.lib")  # Adjust if you have a different lib name
 set(SDL2MAIN_LIBRARY "${SDL2_DIR}/lib/x64/SDL2main.lib")
