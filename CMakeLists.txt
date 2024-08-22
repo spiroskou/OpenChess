@@ -11,10 +11,10 @@ find_package(SDL2_image REQUIRED)
 
 # Print the variables to see their values
 include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS})
-include_directories(Board Pieces)
+include_directories(Board Pieces Config)
 
 # Add source to this project's executable.
-add_executable (OpenChess "main.cpp"  "Pieces/Piece.h" "Pieces/King.h" "Pieces/King.cpp" "Pieces/Rook.h" "Pieces/Rook.cpp" "Pieces/Queen.h" "Pieces/Queen.cpp" "Pieces/Pawn.h" "Pieces/Pawn.cpp" "Pieces/Bishop.h" "Pieces/Bishop.cpp" "Pieces/Knight.h" "Pieces/Knight.cpp" "Board/Board.cpp" "Board/Board.h" "ChessSDL.cpp" "ChessSDL.h" "Pieces/Piece.cpp")
+add_executable (OpenChess "main.cpp" "Pieces/Piece.h" "Pieces/King.h" "Pieces/King.cpp" "Pieces/Rook.h" "Pieces/Rook.cpp" "Pieces/Queen.h" "Pieces/Queen.cpp" "Pieces/Pawn.h" "Pieces/Pawn.cpp" "Pieces/Bishop.h" "Pieces/Bishop.cpp" "Pieces/Knight.h" "Pieces/Knight.cpp" "Board/Board.cpp" "Board/Board.h" "ChessSDL.cpp" "ChessSDL.h" "Pieces/Piece.cpp" "Config/Config.cpp" "Config/Config.h" )
 
 target_link_libraries(OpenChess SDL2::SDL2 SDL2::SDL2main SDL2_image::SDL2_image)
 

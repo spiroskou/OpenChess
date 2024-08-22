@@ -45,7 +45,7 @@ static PieceColor getOpponentColor()
 	return PieceColor::White;
 }
 
-static PieceColor getColor()
+PieceColor getCurrentPlayerColor()
 {
 	if (turn_counter % 2 != 0) {
 		return PieceColor::White;
@@ -230,7 +230,7 @@ int Board::checkForPromotion(int dest_row, int dest_col)
 	if (!tmp_piece) return 0;
 
 	if (tmp_piece->getType() == PieceType::Pawn && (dest_row == 0 || dest_row == 7)) {
-		setPiece(dest_row, dest_col, std::make_shared<Queen>(getColor()));
+		setPiece(dest_row, dest_col, std::make_shared<Queen>(getCurrentPlayerColor()));
 		return 1;
 	}
 
@@ -315,7 +315,7 @@ bool Board::isStalemate()
 	std::shared_ptr<King> king = getKing(getOpponentColor(), kingRow, kingCol);
 
 	// If the king is in check, it's not a stalemate
-	if (isKingInCheck(getColor())) {
+	if (isKingInCheck(getCurrentPlayerColor())) {
 		return false;
 	}
 
@@ -323,14 +323,14 @@ bool Board::isStalemate()
 	for (int row = 0; row < 8; ++row) {
 		for (int col = 0; col < 8; ++col) {
 			std::shared_ptr<Piece> piece = getPiece(row, col);
-			if (piece && piece->getColor() == getColor()) {
+			if (piece && piece->getColor() == getCurrentPlayerColor()) {
 				// Check all possible moves for this piece
 				for (int destRow = 0; destRow < 8; ++destRow) {
 					for (int destCol = 0; destCol < 8; ++destCol) {
 						if (piece->isValidMove(row, col, destRow, destCol)) {
 							// Simulate the move
 							std::shared_ptr<Piece> tmpPiece = replace(row, col, destRow, destCol);
-							bool stillInCheck = isKingInCheck(getColor());
+							bool stillInCheck = isKingInCheck(getCurrentPlayerColor());
 							restore(row, col, destRow, destCol, tmpPiece);
 
 							// If the move does not leave the king in check, it's not a stalemate
@@ -406,7 +406,7 @@ MoveResult Board::move(int src_row, int src_col, int trg_row, int trg_col)
 
 	std::shared_ptr<Piece> tmp_piece = replace(src_row, src_col, trg_row, trg_col);
 	
-	if (isKingInCheck(getColor())) {
+	if (isKingInCheck(getCurrentPlayerColor())) {
 		restore(src_row, src_col, trg_row, trg_col, tmp_piece);
 		return MoveResult::KingInCheck;
 	}
@@ -473,7 +473,7 @@ int Board::evaluate() const
 		for (int col = 0; col < 8; ++col) {
 			auto piece = getPiece(row, col);
 			if (piece) {
-				if (piece->getColor() == getColor()) {
+				if (piece->getColor() == getCurrentPlayerColor()) {
 					score -= piece->getValue();
 				} else {
 					score += piece->getValue();
@@ -527,8 +527,7 @@ Move findBestMove(int depth)
 {
 	int bestValue = std::numeric_limits<int>::max();
 	Move bestMove {-1, -1, -1, -1};
-	PieceColor currentTurn = PieceColor::Black;  // Assuming AI plays as Black
-	std::vector<Move> moves = board->getPossibleMoves(currentTurn);
+	std::vector<Move> moves = board->getPossibleMoves(getCurrentPlayerColor());
 
 	for (const Move& move : moves) {
 		std::shared_ptr<Piece> capturedPiece = board->getPiece(move.dest_row, move.dest_col);

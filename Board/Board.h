@@ -56,3 +56,4 @@ void IncrementTurnCounter();
 int getTurnCounter();
 MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col);
 Move findBestMove(int depth);
+PieceColor getCurrentPlayerColor();

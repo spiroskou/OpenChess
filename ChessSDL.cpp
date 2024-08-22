@@ -1,12 +1,14 @@
+#include <SDL.h>
+#include <SDL_image.h>
 #include <iostream>
 #include <map>
 #include <string>
-#include <SDL.h>
-#include "ChessSDL.h"
 #include <vector>
 #include <memory>
+
+#include "ChessSDL.h"
 #include "Board.h"
-#include <SDL_image.h>
+#include "Config.h"
 
 static std::map<std::string, SDL_Texture*> textures;
 static SDL_Renderer* renderer;
@@ -56,7 +58,7 @@ static SDL_Window* create_SDL_Window(std::string name)
         std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         IMG_Quit();
         SDL_Quit();
-        nullptr;
+        return nullptr;
     }
     return window;
 }
@@ -118,6 +120,94 @@ void ChessSDL_Close()
     SDL_Quit();
 }
 
+static void ChessSDL_RenderPiece(int row, int col)
+{
+	std::shared_ptr<Board> board = getBoard();
+	std::shared_ptr<Piece> piece = board->getPiece(row, col);
+
+    if (piece) {
+		std::string imagePath;
+
+		imagePath = piece->getImagePath();
+		SDL_Texture* texture = getTexture(imagePath);
+		if (texture) {
+			SDL_Rect pieceRect = { col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+			SDL_RenderCopy(renderer, texture, nullptr, &pieceRect);
+		}
+    }
+}
+
+static void ChessSDL_HighlightSelectedTile(SDL_Renderer *renderer, int selectedRow, int selectedCol, bool revert)
+{
+    if (!revert) {
+		SDL_SetRenderDrawColor(renderer, 255, 255, 130, 255);
+    } else {
+        bool isWhiteTile = (selectedRow + selectedCol) % 2 == 0;
+
+        if (isWhiteTile) {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White
+        } else {
+            SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray
+        }
+    }
+	SDL_Rect tile = { selectedCol * TILE_SIZE, selectedRow * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+	SDL_RenderFillRect(renderer, &tile);
+    ChessSDL_RenderPiece(selectedRow, selectedCol);
+}
+
+static void ChessSDL_HighlightSelection(int selectedRow, int selectedCol, bool revert)
+{
+    SDL_Renderer* renderer = getRenderer();
+
+    ChessSDL_HighlightSelectedTile(renderer, selectedRow, selectedCol, revert);
+	SDL_RenderPresent(renderer);
+}
+
+static void ChessSDL_RenderChessBoard()
+{
+    SDL_Renderer* renderer = getRenderer();
+
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_RenderClear(renderer);
+
+    bool white = true;
+    for (int row = 0; row < ROWS; ++row) {
+        for (int col = 0; col < COLS; ++col) {
+
+            if (white) {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White
+            } else {
+                SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray
+            }
+
+            SDL_Rect tile = { col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+            SDL_RenderFillRect(renderer, &tile);
+            white = !white;
+
+            // Render the piece on the board
+            ChessSDL_RenderPiece(row, col);
+        }
+        white = !white;
+    }
+
+	SDL_RenderPresent(renderer);
+}
+
+static void ChessSDL_HighlightLastMove()
+{
+    ChessSDL_RenderChessBoard();
+
+    SDL_Renderer* renderer = getRenderer();
+    std::shared_ptr<Board> board = getBoard();
+    Move move = board->getLastMove();
+
+    if (move.src_col == -1) return;
+
+    ChessSDL_HighlightSelectedTile(renderer, move.src_row, move.src_col, false);
+    ChessSDL_HighlightSelectedTile(renderer, move.dest_row, move.dest_col, false);
+	SDL_RenderPresent(renderer);
+}
+
 int ChessSDL_MakePreparations()
 {
     if (init_SDL()) {
@@ -144,80 +234,9 @@ int ChessSDL_MakePreparations()
         return 1;
     }
 
+    ChessSDL_RenderChessBoard();
+
     return 0;
-}
-
-void ChessSDL_HighlightLastMove()
-{
-    std::shared_ptr<Board> board = getBoard();
-    Move move = board->getLastMove();
-
-    if (move.src_col == -1) return;
-
-    SDL_Renderer* renderer = getRenderer();
-
-	SDL_SetRenderDrawColor(renderer, 255, 255, 130, 255);
-	SDL_Rect tile = { move.src_col * TILE_SIZE, move.src_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-	SDL_RenderFillRect(renderer, &tile);
-	tile = { move.dest_col * TILE_SIZE, move.dest_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-	SDL_RenderFillRect(renderer, &tile);
-    
-    std::shared_ptr<Piece> piece = board->getPiece(move.dest_row, move.dest_col);
-	if (piece) {
-		std::string imagePath;
-
-		imagePath = piece->getImagePath();
-		SDL_Texture* texture = getTexture(imagePath);
-		if (texture) {
-			SDL_Rect pieceRect = { move.dest_col * TILE_SIZE, move.dest_row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-			SDL_RenderCopy(renderer, texture, nullptr, &pieceRect);
-		}
-	}
-
-	SDL_RenderPresent(renderer);
-}
-
-void ChessSDL_RenderChessBoard(bool lastMove)
-{
-    SDL_Renderer* renderer = getRenderer();
-
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderClear(renderer);
-
-    bool white = true;
-    for (int row = 0; row < ROWS; ++row) {
-        for (int col = 0; col < COLS; ++col) {
-
-            if (white) {
-                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White
-            } else {
-                SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray
-            }
-
-            SDL_Rect tile = { col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-            SDL_RenderFillRect(renderer, &tile);
-            white = !white;
-
-            // Render the piece on the board
-            std::shared_ptr<Board> board = getBoard();
-            std::shared_ptr<Piece> piece = board->getPiece(row, col);
-            if (piece) {
-                std::string imagePath;
-                
-                imagePath = piece->getImagePath();
-                SDL_Texture* texture = getTexture(imagePath);
-                if (texture) {
-                    SDL_Rect pieceRect = { col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-                    SDL_RenderCopy(renderer, texture, nullptr, &pieceRect);
-                }
-            }
-        }
-        white = !white;
-    }
-
-	SDL_RenderPresent(renderer);
-
-    if (lastMove) ChessSDL_HighlightLastMove();
 }
 
 static void showCheckmateMessage()
@@ -277,5 +296,84 @@ void ChessSDL_ShowMoveMessage(MoveResult res)
 	default:
 		break;
 	}
+}
 
+static void ChessSDL_HandleMoveResult(const MoveResult& res, bool &quit, int row = -1, int col = -1)
+{
+	if (res == MoveResult::Checkmate || res == MoveResult::Stalemate) {
+		ChessSDL_HighlightLastMove();
+		ChessSDL_ShowMoveMessage(res);
+		quit = true;
+	}
+	if (res == MoveResult::ValidMove) {
+		ChessSDL_HighlightLastMove();
+		IncrementTurnCounter();
+	}
+    if (res == MoveResult::InvalidMove) {
+        ChessSDL_HighlightSelection(row, col, true);
+    }
+	ChessSDL_ShowMoveMessage(res);
+}
+
+void ChessSDL_HandleGameLoop()
+{
+    const Config& config = getConfigurations();
+    bool quit = false;
+    SDL_Event e;
+    std::shared_ptr<Board> board = getBoard();
+	static bool isPieceSelected = false;
+	static int selectedRow = -1;
+	static int selectedCol = -1;
+
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) {
+                quit = true;
+            } else if (e.type == SDL_MOUSEBUTTONDOWN) {
+                int x, y;
+                SDL_GetMouseState(&x, &y);
+                int row = y / TILE_SIZE;
+                int col = x / TILE_SIZE;
+
+                if (!isPieceSelected) {
+                    auto selectedPiece = board->getPiece(row, col);
+                    if (selectedPiece && selectedPiece->getColor() == getCurrentPlayerColor()) {
+                        isPieceSelected = true;
+                        selectedRow = row;
+                        selectedCol = col;
+
+                        // Highlight the selected piece
+                        ChessSDL_HighlightSelection(selectedRow, selectedCol, false);
+                    }
+                } else {
+                    int src_row = selectedRow;
+                    int src_col = selectedCol;
+                    int dest_row = row;
+                    int dest_col = col;
+                    isPieceSelected = false;
+
+                    MoveResult res = makeTheMove(src_row, src_col, dest_row, dest_col);
+                    ChessSDL_HandleMoveResult(res, quit, selectedRow, selectedCol);
+
+                    if (quit == true) break;
+                }
+            } else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
+                if (isPieceSelected) {
+                    ChessSDL_HighlightSelection(selectedRow, selectedCol, true);
+                    isPieceSelected = false;
+                    selectedRow = -1;
+                    selectedCol = -1;
+                }
+            }
+        }
+
+        if (config.AI_OPPONENT) {
+            // AI's turn (Player 2)
+            if (getTurnCounter() % 2 == 0 && !quit) {  // Assuming AI plays as Black
+                Move aiMove = findBestMove(config.depth);
+                MoveResult aiRes = makeTheMove(aiMove.src_row, aiMove.src_col, aiMove.dest_row, aiMove.dest_col);
+                ChessSDL_HandleMoveResult(aiRes, quit);
+            }
+        }
+    }
 }
