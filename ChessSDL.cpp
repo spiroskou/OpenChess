@@ -12,7 +12,7 @@
 #include "ChessSDL.h"
 #include "Board.h"
 
-constexpr int depth = 1;
+constexpr int depth = 4;
 
 static std::map<std::string, SDL_Texture*> textures;
 static SDL_Renderer* renderer;
