@@ -3,7 +3,6 @@
 #endif
 #include "ChessSDL.h"
 #include <SDL.h> // for linking error
-#include "Board.h"
 
 int main(int argc, char* args[])
 {
