@@ -3,21 +3,9 @@
 #include <array>
 #include <string>
 #include <vector>
+#include <memory>
 
-enum class MoveResult {
-    InvalidPiece = 0,
-    OpponentPiece,
-    InvalidMove,
-    KingInCheck,
-    Checkmate,
-    Stalemate,
-    ValidMove
-};
-
-struct Move {
-    int src_row, src_col;
-    int dest_row, dest_col;
-};
+struct Move;
 
 enum class PieceType {Empty, Pawn, Knight, Bishop, Rook, Queen, King};
 enum class PieceColor {Blank, White, Black};
@@ -46,3 +34,5 @@ private:
 	PieceColor m_color;
 	bool m_hasMoved;
 };
+
+

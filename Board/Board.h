@@ -10,10 +10,32 @@
 #include "Queen.h"
 #include "King.h"
 
+enum class MoveResult {
+    InvalidPiece = 0,
+    OpponentPiece,
+    InvalidMove,
+    KingInCheck,
+    Checkmate,
+    Stalemate,
+    ValidMove
+};
+
+struct Move {
+    int src_row, src_col;
+    int dest_row, dest_col;
+	std::shared_ptr<Piece> src_piece, captured_piece;
+};
+
+constexpr int ROWS = 8;
+constexpr int COLS = 8;
+constexpr int SCREEN_WIDTH = 640;
+constexpr int SCREEN_HEIGHT = 640;
+constexpr int TILE_SIZE = SCREEN_WIDTH / COLS;
+
 class Board
 {
 private:
-	std::array<std::array<std::shared_ptr<Piece>, 8>, 8> m_layout;
+	std::array<std::array<std::shared_ptr<Piece>, COLS>, ROWS> m_layout;
     std::vector<Move> moveHistory;
 
     void initializePieceRow(int row, PieceColor color);
@@ -29,7 +51,7 @@ public:
         moveHistory.clear();
     }
 
-    MoveResult move(int src_row, int src_col, int trg_row, int trg_col);
+    MoveResult move(Move &move);
     std::shared_ptr<Piece> replace(int src_row, int src_col, int trg_row, int trg_col);
     void restore(int src_row, int src_col, int trg_row, int trg_col, std::shared_ptr<Piece> tmp_piece);
     std::shared_ptr<Piece> getPiece(int row, int col) const { return m_layout[row][col]; };
@@ -43,17 +65,16 @@ public:
     void performEnPassant(int src_row, int src_col, int trg_row, int trg_col);
     void removePiece(int row, int col);
     Move getLastMove() const;
-    bool isEnPassant(int src_row, int src_col, int trg_row, int trg_col) const;
     bool isStalemate();
     void makeMove(const Move& move);
     void undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece);
     std::vector<Move> getPossibleMoves(PieceColor color) const;
     int evaluate() const;
+    void setMove(const Move &move);
+    MoveResult evaluateGameState(const Move& move);
 };
 
 std::shared_ptr<Board> getBoard();
-void IncrementTurnCounter();
 int getTurnCounter();
-MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col);
 Move findBestMove(int depth);
 PieceColor getCurrentPlayerColor();

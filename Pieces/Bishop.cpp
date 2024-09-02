@@ -54,10 +54,10 @@ std::string Bishop::getImagePath() const
 
     switch (getColor()) {
         case (PieceColor::White):
-            str1 = "images/white";
+            str1 = "../../../images/white";
             break;
         case (PieceColor::Black):
-            str1 = "images/black";
+            str1 = "../../../images/black";
             break;
         case (PieceColor::Blank):
         default:

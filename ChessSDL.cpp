@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
@@ -8,11 +11,19 @@
 
 #include "ChessSDL.h"
 #include "Board.h"
-#include "Config.h"
+
+constexpr int depth = 1;
 
 static std::map<std::string, SDL_Texture*> textures;
 static SDL_Renderer* renderer;
 static SDL_Window* window;
+
+static bool QUIT = false;
+
+bool ChessSDL_NeedToQuit()
+{
+    return QUIT;
+}
 
 static SDL_Texture* getTexture(std::string imagePath)
 {
@@ -79,18 +90,18 @@ static SDL_Renderer* create_SDL_Renderer(SDL_Window *window)
 static bool loadMedia(SDL_Renderer* renderer) {
     // Load images for all piece types
     std::vector<std::string> Files = {
-        "images/white-pawn.png",
-        "images/black-pawn.png",
-        "images/white-bishop.png",
-        "images/black-bishop.png",
-        "images/white-rook.png",
-        "images/black-rook.png",
-        "images/white-king.png",
-        "images/black-king.png",
-        "images/white-knight.png",
-        "images/black-knight.png",
-        "images/white-queen.png",
-        "images/black-queen.png"
+        "../../../images/white-pawn.png",
+        "../../../images/black-pawn.png",
+        "../../../images/white-bishop.png",
+        "../../../images/black-bishop.png",
+        "../../../images/white-rook.png",
+        "../../../images/black-rook.png",
+        "../../../images/white-king.png",
+        "../../../images/black-king.png",
+        "../../../images/white-knight.png",
+        "../../../images/black-knight.png",
+        "../../../images/white-queen.png",
+        "../../../images/black-queen.png"
     };
     for (const auto& file : Files) {
         SDL_Surface* loadedSurface = IMG_Load(file.c_str());
@@ -155,14 +166,6 @@ static void ChessSDL_HighlightSelectedTile(SDL_Renderer *renderer, int selectedR
     ChessSDL_RenderPiece(selectedRow, selectedCol);
 }
 
-static void ChessSDL_HighlightSelection(int selectedRow, int selectedCol, bool revert)
-{
-    SDL_Renderer* renderer = getRenderer();
-
-    ChessSDL_HighlightSelectedTile(renderer, selectedRow, selectedCol, revert);
-	SDL_RenderPresent(renderer);
-}
-
 static void ChessSDL_RenderChessBoard()
 {
     SDL_Renderer* renderer = getRenderer();
@@ -193,6 +196,15 @@ static void ChessSDL_RenderChessBoard()
 	SDL_RenderPresent(renderer);
 }
 
+void ChessSDL_HighlightSelection(int selectedRow, int selectedCol, bool revert)
+{
+    ChessSDL_RenderChessBoard();
+
+    SDL_Renderer* renderer = getRenderer();
+    ChessSDL_HighlightSelectedTile(renderer, selectedRow, selectedCol, revert);
+	SDL_RenderPresent(renderer);
+}
+
 static void ChessSDL_HighlightLastMove()
 {
     ChessSDL_RenderChessBoard();
@@ -218,7 +230,7 @@ int ChessSDL_MakePreparations()
         return 1;
     }
 
-    window = create_SDL_Window("ChessGame");
+    window = create_SDL_Window("OpenChess");
     if (!window) {
         return 1;
     }
@@ -270,7 +282,7 @@ static void showKingInCheckMessage()
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Warning", message.c_str(), window);
 }
 
-void ChessSDL_ShowMoveMessage(MoveResult res)
+static void ChessSDL_ShowMoveMessage(MoveResult res)
 {
 	switch (res)
 	{
@@ -298,82 +310,106 @@ void ChessSDL_ShowMoveMessage(MoveResult res)
 	}
 }
 
-static void ChessSDL_HandleMoveResult(const MoveResult& res, bool &quit, int row = -1, int col = -1)
+static bool ChessSDL_HandleMoveResult(const MoveResult& res, const Move& move)
 {
-	if (res == MoveResult::Checkmate || res == MoveResult::Stalemate) {
+    bool quit = false;
+
+    if (res == MoveResult::InvalidMove || res == MoveResult::KingInCheck) {
+        ChessSDL_HighlightSelection(move.src_row, move.src_col, true);
+    } else if (res == MoveResult::Checkmate || res == MoveResult::Stalemate) {
 		ChessSDL_HighlightLastMove();
-		ChessSDL_ShowMoveMessage(res);
 		quit = true;
-	}
-	if (res == MoveResult::ValidMove) {
+	} else if (res == MoveResult::ValidMove) {
 		ChessSDL_HighlightLastMove();
-		IncrementTurnCounter();
 	}
-    if (res == MoveResult::InvalidMove) {
-        ChessSDL_HighlightSelection(row, col, true);
-    }
+
 	ChessSDL_ShowMoveMessage(res);
+    return quit;
 }
 
-void ChessSDL_HandleGameLoop()
+static bool ChessSDL_MakeTheMove(Move &move)
 {
-    const Config& config = getConfigurations();
-    bool quit = false;
-    SDL_Event e;
     std::shared_ptr<Board> board = getBoard();
-	static bool isPieceSelected = false;
-	static int selectedRow = -1;
-	static int selectedCol = -1;
+	MoveResult res = board->move(move);
 
-    while (!quit) {
-        while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
-            } else if (e.type == SDL_MOUSEBUTTONDOWN) {
-                int x, y;
-                SDL_GetMouseState(&x, &y);
-                int row = y / TILE_SIZE;
-                int col = x / TILE_SIZE;
+	if (res == MoveResult::ValidMove) {
+		res = board->evaluateGameState(move);
+	}
 
-                if (!isPieceSelected) {
-                    auto selectedPiece = board->getPiece(row, col);
-                    if (selectedPiece && selectedPiece->getColor() == getCurrentPlayerColor()) {
-                        isPieceSelected = true;
-                        selectedRow = row;
-                        selectedCol = col;
+	return ChessSDL_HandleMoveResult(res, move);
+}
 
-                        // Highlight the selected piece
-                        ChessSDL_HighlightSelection(selectedRow, selectedCol, false);
+static int handleFirstClick(Move &move, int row, int col, bool &isPieceSelected)
+{
+	std::shared_ptr<Board> board = getBoard();
+
+	if (!isPieceSelected) {
+		auto selectedPiece = board->getPiece(row, col);
+		if (selectedPiece && selectedPiece->getColor() == getCurrentPlayerColor()) {
+            isPieceSelected = true;
+            move.src_row = row;
+            move.src_col = col;
+			ChessSDL_HighlightSelection(row, col, false);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int handleSecondClick(Move &move, int row, int col, bool &isPieceSelected)
+{
+    if (isPieceSelected) {
+	    isPieceSelected = false;
+        move.dest_row = row;
+        move.dest_col = col;
+        return 1;
+    }
+    return 0;
+}
+
+void ChessSDL_GameLoopIteration() 
+{
+    SDL_Event e;
+    static bool isPieceSelected = false;
+    static Move move{ 0 };
+
+    while (SDL_PollEvent(&e) != 0) {
+        if (e.type == SDL_QUIT) {
+            QUIT = true;
+#ifdef __EMSCRIPTEN__
+            emscripten_cancel_main_loop();
+#endif
+        } else if (e.type == SDL_MOUSEBUTTONDOWN) {
+            int x, y;
+            SDL_GetMouseState(&x, &y);
+            int row = y / TILE_SIZE;
+            int col = x / TILE_SIZE;
+
+            if (handleFirstClick(move, row, col, isPieceSelected) == 0) {
+                if (handleSecondClick(move, row, col, isPieceSelected)) {
+                    QUIT = ChessSDL_MakeTheMove(move);
+                    if (QUIT) {
+#ifdef __EMSCRIPTEN__
+                        emscripten_cancel_main_loop();
+#endif
                     }
-                } else {
-                    int src_row = selectedRow;
-                    int src_col = selectedCol;
-                    int dest_row = row;
-                    int dest_col = col;
-                    isPieceSelected = false;
-
-                    MoveResult res = makeTheMove(src_row, src_col, dest_row, dest_col);
-                    ChessSDL_HandleMoveResult(res, quit, selectedRow, selectedCol);
-
-                    if (quit == true) break;
-                }
-            } else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
-                if (isPieceSelected) {
-                    ChessSDL_HighlightSelection(selectedRow, selectedCol, true);
-                    isPieceSelected = false;
-                    selectedRow = -1;
-                    selectedCol = -1;
                 }
             }
-        }
-
-        if (config.AI_OPPONENT) {
-            // AI's turn (Player 2)
-            if (getTurnCounter() % 2 == 0 && !quit) {  // Assuming AI plays as Black
-                Move aiMove = findBestMove(config.depth);
-                MoveResult aiRes = makeTheMove(aiMove.src_row, aiMove.src_col, aiMove.dest_row, aiMove.dest_col);
-                ChessSDL_HandleMoveResult(aiRes, quit);
+        } else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
+            if (isPieceSelected) {
+                ChessSDL_HighlightSelection(move.src_row, move.src_col, true);
+                isPieceSelected = false;
             }
         }
     }
+
+	if (getTurnCounter() % 2 == 0 && !QUIT) {
+		Move aiMove = findBestMove(depth);
+		QUIT = ChessSDL_MakeTheMove(aiMove);
+		if (QUIT) {
+#ifdef __EMSCRIPTEN__
+			emscripten_cancel_main_loop();
+#endif
+		}
+	}
 }

@@ -1,4 +1,5 @@
 #include "Piece.h"
+#include "Board.h"
 
 void Piece::getValidMoves(int row, int col, std::vector<Move> &moves)
 {

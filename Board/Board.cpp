@@ -3,7 +3,6 @@
 #include "Piece.h"
 #include <memory>
 #include <limits>
-#include "SDL.h"
 
 #undef min
 #undef max
@@ -23,14 +22,14 @@ void Board::initializePieceRow(int row, PieceColor color) {
 }
 
 void Board::initializePawnRow(int row, PieceColor color) {
-	for (int col = 0; col < 8; ++col) {
+	for (int col = 0; col < COLS; ++col) {
 		m_layout[row][col] = std::make_shared<Pawn>(color);
 	}
 }
 
 void Board::initializeEmptyRows() {
 	for (int row = 2; row <= 5; ++row) {
-		for (int col = 0; col < 8; ++col) {
+		for (int col = 0; col < COLS; ++col) {
 			m_layout[row][col] = nullptr;
 		}
 	}
@@ -59,14 +58,22 @@ int getTurnCounter()
 	return turn_counter;
 }
 
-void IncrementTurnCounter()
-{
-	turn_counter++;
-}
-
 std::shared_ptr<Board> getBoard()
 {
 	return board;
+}
+
+Move Board::getLastMove() const 
+{
+	if (moveHistory.empty()) {
+		return Move{ -1, -1, -1, -1 }; // Return an invalid move if no moves have been made
+	}
+	return moveHistory.back();
+}
+
+void Board::removePiece(int row, int col) 
+{
+	m_layout[row][col] = nullptr;
 }
 
 std::shared_ptr<Piece> Board::replace(int src_row, int src_col, int trg_row, int trg_col)
@@ -86,71 +93,13 @@ void Board::restore(int src_row, int src_col, int trg_row, int trg_col, std::sha
 	setPiece(src_row, src_col, dest_piece);
 }
 
-Move Board::getLastMove() const 
-{
-	if (moveHistory.empty()) {
-		return Move{ -1, -1, -1, -1 }; // Return an invalid move if no moves have been made
-	}
-	return moveHistory.back();
-}
-
-static bool isDoubleStep(Move& move)
-{
-	int rowDiff = abs(move.dest_row - move.src_row);
-	if (rowDiff == 2) {
-		return true;
-	}
-	return false;
-}
-
-bool Board::isEnPassant(int src_row, int src_col, int trg_row, int trg_col) const 
-{
-	auto pawn = getPiece(src_row, src_col);
-	if (pawn->getType() != PieceType::Pawn) {
-		return false;
-	}
-
-	// Check if the move is a valid en passant capture
-	int direction = (pawn->getColor() == PieceColor::White) ? 1 : -1;
-	if (abs(trg_col - src_col) == 1 && trg_row == src_row + direction) {
-		auto target_pawn = getPiece(src_row, trg_col);
-		if (target_pawn && target_pawn->getType() == PieceType::Pawn && target_pawn->getColor() != pawn->getColor()) {
-			// Ensure the target pawn just moved two squares in the last turn
-			Move move = getLastMove();
-			if (isDoubleStep(move)) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-void Board::removePiece(int row, int col) 
-{
-	m_layout[row][col] = nullptr;
-}
-
-void Board::performEnPassant(int src_row, int src_col, int trg_row, int trg_col) 
-{
-	auto pawn = getPiece(src_row, src_col);
-	int direction = (pawn->getColor() == PieceColor::White) ? 1 : -1;
-
-	// Capture the target pawn
-	auto target_pawn = getPiece(src_row, trg_col);
-	removePiece(src_row, trg_col);
-
-	// Move the capturing pawn to the target square
-	replace(src_row, src_col, trg_row, trg_col);
-}
-
 bool Board::isSquareAttacked(int row, int col, PieceColor color) const 
 {
 	PieceColor opponentColor = getOpponentColor();
 
 	// Iterate over all squares on the board
-	for (int i = 0; i < 8; ++i) {
-		for (int j = 0; j < 8; ++j) {
+	for (int i = 0; i < ROWS; ++i) {
+		for (int j = 0; j < COLS; ++j) {
 			auto piece = getPiece(i, j);
 
 			// If the piece is null or not an opponent's piece, continue
@@ -178,8 +127,8 @@ bool Board::isSquareAttacked(int row, int col, PieceColor color) const
 
 std::shared_ptr<King> Board::getKing(PieceColor color, int &king_row, int& king_col) const
 {
-	for (int row = 0; row < 8; row++) {
-		for (int col = 0; col < 8; col++) {
+	for (int row = 0; row < ROWS; row++) {
+		for (int col = 0; col < COLS; col++) {
 			std::shared_ptr<Piece> piece = m_layout[row][col];
 			if (!piece) continue;
 			
@@ -206,8 +155,8 @@ bool Board::isKingInCheck(PieceColor color) const
 
 	// Check if any opponent's pieces threaten the king
 
-	for (int row = 0; row < 8; row++) {
-		for (int col = 0; col < 8; col++) {
+	for (int row = 0; row < ROWS; row++) {
+		for (int col = 0; col < COLS; col++) {
 			std::shared_ptr<Piece> piece = getPiece(row,col);
 			if (!piece) continue;
 			
@@ -256,7 +205,7 @@ bool Board::isCheckmate()
 	// Check if the king has any legal moves to escape check
 	for (int row = king_row - 1; row <= king_row + 1; ++row) {
 		for (int col = king_col - 1; col <= king_col + 1; ++col) {
-			if (row >= 0 && row < 8 && col >= 0 && col < 8 && !(row == king_row && col == king_col)) {
+			if (row >= 0 && row < ROWS && col >= 0 && col < COLS && !(row == king_row && col == king_col)) {
 				std::shared_ptr<Piece> piece = getPiece(row, col);
 				if (piece && piece->getColor() == opp_color) continue;
 				int dum_king_row = -1, dum_king_col = -1;
@@ -277,16 +226,16 @@ bool Board::isCheckmate()
 	}
 
 	// Check if any piece can block the check or capture the attacking piece
-	for (int row = 0; row < 8; ++row) {
-		for (int col = 0; col < 8; ++col) {
+	for (int row = 0; row < ROWS; ++row) {
+		for (int col = 0; col < COLS; ++col) {
 			if (row == king_row && col == king_col) continue;
 			std::shared_ptr<Piece> piece = getPiece(row, col);
 			if (!piece) continue;
 
 			if (piece->getColor() == opp_color) {
 				// Check all possible moves for this piece
-				for (int target_row = 0; target_row < 8; ++target_row) {
-					for (int target_col = 0; target_col < 8; ++target_col) {
+				for (int target_row = 0; target_row < ROWS; ++target_row) {
+					for (int target_col = 0; target_col < COLS; ++target_col) {
 						if (piece->isValidMove(row, col, target_row, target_col)) {
 							std::shared_ptr<Piece> tmp_piece = replace(row, col, target_row, target_col);
 							bool still_in_check = isKingInCheck(opp_color);
@@ -320,13 +269,13 @@ bool Board::isStalemate()
 	}
 
 	// Iterate through all pieces of the current player
-	for (int row = 0; row < 8; ++row) {
-		for (int col = 0; col < 8; ++col) {
+	for (int row = 0; row < ROWS; ++row) {
+		for (int col = 0; col < COLS; ++col) {
 			std::shared_ptr<Piece> piece = getPiece(row, col);
 			if (piece && piece->getColor() == getCurrentPlayerColor()) {
 				// Check all possible moves for this piece
-				for (int destRow = 0; destRow < 8; ++destRow) {
-					for (int destCol = 0; destCol < 8; ++destCol) {
+				for (int destRow = 0; destRow < ROWS; ++destRow) {
+					for (int destCol = 0; destCol < COLS; ++destCol) {
 						if (piece->isValidMove(row, col, destRow, destCol)) {
 							// Simulate the move
 							std::shared_ptr<Piece> tmpPiece = replace(row, col, destRow, destCol);
@@ -348,6 +297,19 @@ bool Board::isStalemate()
 	return true;
 }
 
+void Board::performEnPassant(int src_row, int src_col, int trg_row, int trg_col) 
+{
+	auto pawn = getPiece(src_row, src_col);
+	int direction = (pawn->getColor() == PieceColor::White) ? 1 : -1;
+
+	// Capture the target pawn
+	auto target_pawn = getPiece(src_row, trg_col);
+	removePiece(src_row, trg_col);
+
+	// Move the capturing pawn to the target square
+	replace(src_row, src_col, trg_row, trg_col);
+}
+
 void Board::performCastling(int src_row, int src_col, int trg_row, int trg_col) 
 {
 	// Perform the castling move
@@ -361,80 +323,81 @@ void Board::performCastling(int src_row, int src_col, int trg_row, int trg_col)
 	replace(src_row, rook_col, trg_row, new_rook_col); // Move the rook
 }
 
-MoveResult Board::move(int src_row, int src_col, int trg_row, int trg_col)
+void Board::setMove(const Move &move)
 {
-	auto src_piece = getPiece(src_row, src_col);
+	moveHistory.push_back(move);
+}
+
+static void IncrementTurnCounter()
+{
+	turn_counter++;
+}
+
+MoveResult Board::evaluateGameState(const Move &move)
+{
+	if (isKingInCheck(getCurrentPlayerColor())) {
+		restore(move.src_row, move.src_col, move.dest_row, move.dest_col, move.captured_piece);
+		return MoveResult::KingInCheck;
+	} else if (isCheckmate()) {
+		return MoveResult::Checkmate;
+	} else if (isStalemate()) {
+		return MoveResult::Stalemate;
+	} else if (checkForPromotion(move.dest_row, move.dest_col)) {
+		if (isCheckmate()) {
+			return MoveResult::Checkmate;
+		} else if (isStalemate()) {
+			return MoveResult::Stalemate;
+		}
+	}
+	
+	IncrementTurnCounter();
+	setMove(move);
+	move.src_piece->setMoved(true);
+	return MoveResult::ValidMove;
+}
+
+MoveResult Board::move(Move &move)
+{
+	move.src_piece = getPiece(move.src_row, move.src_col);
 
 	// Check if the player chose a piece
-	if (!src_piece) {
+	if (!move.src_piece) {
 		return MoveResult::InvalidPiece;
 	}
 
 	// Check if the player chose opponent's piece
 	PieceColor opp_color = getOpponentColor();
-	if (src_piece->getColor() == opp_color) {
+	if (move.src_piece->getColor() == opp_color) {
 		return MoveResult::OpponentPiece;
 	}
 
 	// Handle castling move
-	if (src_piece->getType() == PieceType::King) {
-		std::shared_ptr<King> king = std::static_pointer_cast<King> (src_piece);
-		if (king->canCastle(src_row, src_col, trg_row, trg_col)) {
-			performCastling(src_row, src_col, trg_row, trg_col);
+	if (move.src_piece->getType() == PieceType::King) {
+		std::shared_ptr<King> king = std::static_pointer_cast<King> (move.src_piece);
+		if (king->canCastle(move.src_row, move.src_col, move.dest_row, move.dest_col)) {
+			performCastling(move.src_row, move.src_col, move.dest_row, move.dest_col);
 			king->setMoved(true);
-			Move move{ src_row, src_col, trg_row, trg_col };
-			moveHistory.push_back(move);
 			return MoveResult::ValidMove;
 		}
 	}
 
 	// Handle EnPassant move
-	if (src_piece->getType() == PieceType::Pawn) {
-		if (isEnPassant(src_row, src_col, trg_row, trg_col)) {
-			performEnPassant(src_row, src_col, trg_row, trg_col);
-			src_piece->setMoved(true);
-			Move move{ src_row, src_col, trg_row, trg_col };
-			moveHistory.push_back(move);
+	if (move.src_piece->getType() == PieceType::Pawn) {
+		std::shared_ptr<Pawn> pawn = std::static_pointer_cast<Pawn> (move.src_piece);
+		if (pawn->isEnPassant(move.src_row, move.src_col, move.dest_row, move.dest_col)) {
+			performEnPassant(move.src_row, move.src_col, move.dest_row, move.dest_col);
+			pawn->setMoved(true);
 			return MoveResult::ValidMove;
 		}
 	}
 
 	// Check if the player chose a valid move for the corresponding Piece
-	if (!getPiece(src_row, src_col)->isValidMove(src_row, src_col, trg_row, trg_col)) {
+	if (!move.src_piece->isValidMove(move.src_row, move.src_col, move.dest_row, move.dest_col)) {
 		return MoveResult::InvalidMove;
 	}
 
-	std::shared_ptr<Piece> tmp_piece = replace(src_row, src_col, trg_row, trg_col);
-	
-	if (isKingInCheck(getCurrentPlayerColor())) {
-		restore(src_row, src_col, trg_row, trg_col, tmp_piece);
-		return MoveResult::KingInCheck;
-	}
-
-	if (isCheckmate()) {
-		return MoveResult::Checkmate;
-	}
-
-	if (isStalemate()) {
-		return MoveResult::Stalemate;
-	}
-
-	if (checkForPromotion(trg_row, trg_col)) {
-		if (isCheckmate()) {
-			return MoveResult::Checkmate;
-		}
-	}
-
-	src_piece->setMoved(true);
-	Move move{ src_row, src_col, trg_row, trg_col };
-	moveHistory.push_back(move);
-
+	move.captured_piece = replace(move.src_row, move.src_col, move.dest_row, move.dest_col);
 	return MoveResult::ValidMove;
-}
-
-MoveResult makeTheMove(int src_row, int src_col, int trg_row, int trg_col)
-{
-	return board->move(src_row, src_col, trg_row, trg_col);
 }
 
 void Board::makeMove(const Move& move) 
@@ -445,7 +408,6 @@ void Board::makeMove(const Move& move)
 
 void Board::undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece) 
 {
-	// Revert the move
 	restore(move.src_row, move.src_col, move.dest_row, move.dest_col, capturedPiece);
 	moveHistory.pop_back();
 }
@@ -453,8 +415,8 @@ void Board::undoMove(const Move& move, std::shared_ptr<Piece> capturedPiece)
 std::vector<Move> Board::getPossibleMoves(PieceColor color) const 
 {
 	std::vector<Move> moves;
-	for (int row = 0; row < 8; ++row) {
-		for (int col = 0; col < 8; ++col) {
+	for (int row = 0; row < ROWS; ++row) {
+		for (int col = 0; col < COLS; ++col) {
 			auto piece = getPiece(row, col);
 
 			if (piece && piece->getColor() == color) {
@@ -467,10 +429,9 @@ std::vector<Move> Board::getPossibleMoves(PieceColor color) const
 
 int Board::evaluate() const 
 {
-	// A simple evaluation function: positive for White, negative for Black
 	int score = 0;
-	for (int row = 0; row < 8; ++row) {
-		for (int col = 0; col < 8; ++col) {
+	for (int row = 0; row < ROWS; ++row) {
+		for (int col = 0; col < COLS; ++col) {
 			auto piece = getPiece(row, col);
 			if (piece) {
 				if (piece->getColor() == getCurrentPlayerColor()) {
