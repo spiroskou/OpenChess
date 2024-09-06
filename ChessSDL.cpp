@@ -8,11 +8,12 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono>
 
 #include "ChessSDL.h"
 #include "Board.h"
 
-constexpr int depth = 4;
+constexpr int depth = 5;
 
 static std::map<std::string, SDL_Texture*> textures;
 static SDL_Renderer* renderer;
@@ -388,6 +389,7 @@ void ChessSDL_GameLoopIteration()
             if (handleFirstClick(move, row, col, isPieceSelected) == 0) {
                 if (handleSecondClick(move, row, col, isPieceSelected)) {
                     QUIT = ChessSDL_MakeTheMove(move);
+
                     if (QUIT) {
 #ifdef __EMSCRIPTEN__
                         emscripten_cancel_main_loop();
@@ -404,7 +406,17 @@ void ChessSDL_GameLoopIteration()
     }
 
 	if (getTurnCounter() % 2 == 0 && !QUIT) {
+        auto start = std::chrono::high_resolution_clock::now();
 		Move aiMove = findBestMove(depth);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double> elapsed = end - start;
+        double calculationTime = elapsed.count();
+
+        if (calculationTime < 1.0) {
+		    SDL_Delay(1000);
+        }
+
 		QUIT = ChessSDL_MakeTheMove(aiMove);
 		if (QUIT) {
 #ifdef __EMSCRIPTEN__
