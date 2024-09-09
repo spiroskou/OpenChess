@@ -374,6 +374,26 @@ void ChessSDL_GameLoopIteration()
     static bool isPieceSelected = false;
     static Move move{ 0 };
 
+	if (getTurnCounter() % 2 == 0 && !QUIT) {
+        auto start = std::chrono::high_resolution_clock::now();
+		Move aiMove = findBestMove(depth);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double> elapsed = end - start;
+        double calculationTime = elapsed.count();
+
+        if (calculationTime < 0.5) {
+		    SDL_Delay(500);
+        }
+
+		QUIT = ChessSDL_MakeTheMove(aiMove);
+		if (QUIT) {
+#ifdef __EMSCRIPTEN__
+			emscripten_cancel_main_loop();
+#endif
+		}
+	}
+
     while (SDL_PollEvent(&e) != 0) {
         if (e.type == SDL_QUIT) {
             QUIT = true;
@@ -389,7 +409,6 @@ void ChessSDL_GameLoopIteration()
             if (handleFirstClick(move, row, col, isPieceSelected) == 0) {
                 if (handleSecondClick(move, row, col, isPieceSelected)) {
                     QUIT = ChessSDL_MakeTheMove(move);
-
                     if (QUIT) {
 #ifdef __EMSCRIPTEN__
                         emscripten_cancel_main_loop();
@@ -405,23 +424,4 @@ void ChessSDL_GameLoopIteration()
         }
     }
 
-	if (getTurnCounter() % 2 == 0 && !QUIT) {
-        auto start = std::chrono::high_resolution_clock::now();
-		Move aiMove = findBestMove(depth);
-        auto end = std::chrono::high_resolution_clock::now();
-
-        std::chrono::duration<double> elapsed = end - start;
-        double calculationTime = elapsed.count();
-
-        if (calculationTime < 1.0) {
-		    SDL_Delay(1000);
-        }
-
-		QUIT = ChessSDL_MakeTheMove(aiMove);
-		if (QUIT) {
-#ifdef __EMSCRIPTEN__
-			emscripten_cancel_main_loop();
-#endif
-		}
-	}
 }
