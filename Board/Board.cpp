@@ -427,23 +427,53 @@ std::vector<Move> Board::getPossibleMoves(PieceColor color) const
 	return moves;
 }
 
-int Board::evaluate() const 
+int Board::evaluate() const
 {
 	int score = 0;
+
+	// Positional piece-square tables for more strategic play
+	static const int pawnTable[8][8] = {
+		{  0,  0,  0,  0,  0,  0,  0,  0 },
+		{  5, 10, 10, -20, -20, 10, 10,  5 },
+		{  5, -5, -10,  0,  0, -10, -5,  5 },
+		{  0,  0,  0, 20, 20,  0,  0,  0 },
+		{  5,  5, 10, 25, 25, 10,  5,  5 },
+		{ 10, 10, 20, 30, 30, 20, 10, 10 },
+		{ 50, 50, 50, 50, 50, 50, 50, 50 },
+		{  0,  0,  0,  0,  0,  0,  0,  0 }
+	};
+
 	for (int row = 0; row < ROWS; ++row) {
 		for (int col = 0; col < COLS; ++col) {
 			auto piece = getPiece(row, col);
 			if (piece) {
+				int pieceValue = piece->getValue();
+				int positionalBonus = 0;
+
+				// Use piece-square tables for pawns
+				if (piece->getType() == PieceType::Pawn) {
+					if (piece->getColor() == PieceColor::White) {
+						positionalBonus = pawnTable[row][col];
+					}
+					else {
+						positionalBonus = pawnTable[7 - row][col];
+					}
+				}
+
+				// Apply positional bonuses to the score
 				if (piece->getColor() == getCurrentPlayerColor()) {
-					score -= piece->getValue();
-				} else {
-					score += piece->getValue();
+					score -= (pieceValue + positionalBonus);
+				}
+				else {
+					score += (pieceValue + positionalBonus);
 				}
 			}
 		}
 	}
+
 	return score;
 }
+
 
 int minimax(int depth, int alpha, int beta, bool isMaximizingPlayer) 
 {
